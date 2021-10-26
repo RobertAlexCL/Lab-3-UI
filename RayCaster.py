@@ -1,7 +1,9 @@
 import pygame as pg
 #import pygame.gfxdraw as gfx
- 
-from math import cos, sin, pi
+
+from math import cos, sin, pi, trunc
+
+from pygame.constants import K_DOWN
 
 RAY_AMOUNT = 60
 WHITE = pg.Color('white')
@@ -9,6 +11,7 @@ BLACK = pg.Color('black')
 GRAY = pg.Color("gray")
 SADDLEBROWN = pg.Color("saddlebrown")
 DIMGRAY = pg.Color("dimgray")
+PAUSE = False
 
 wallcolors = {
     '1': pg.Color('red'),
@@ -67,7 +70,7 @@ class Raycaster(object):
     def castRay(self, angle):
         rads = angle * pi / 180
         dist = 0
-        stepSize = 1
+        stepSize = 2
         stepX = stepSize * cos(rads)
         stepY = stepSize * sin(rads)
 
@@ -75,9 +78,8 @@ class Raycaster(object):
 
         x = playerPos[0]
         y = playerPos[1]
-
-        while True:
-            dist += stepSize      
+        
+        while True:   
 
             x += stepX
             y += stepY
@@ -107,7 +109,9 @@ class Raycaster(object):
 
                         tx = hit / self.blocksize
                         pg.draw.line(self.screen, WHITE, playerPos, (x,y))
+                        
                         return dist, self.map[j][i], tx
+            dist += stepSize
 
 
     def render(self):
@@ -151,82 +155,172 @@ class Raycaster(object):
         # Columna divisora
         pg.draw.line(self.screen, BLACK, (self.width/2, 0), (self.width/2, self.height), width = 3)
 
-
 width = 1000
 height = 500
-
 pg.init()
 screen = pg.display.set_mode((width,height), pg.DOUBLEBUF | pg.HWACCEL )
 screen.set_alpha(None)
 
-rCaster = Raycaster(screen)
-rCaster.load_map("map.txt")
-
-clock = pg.time.Clock()
-font = pg.font.SysFont("Arial", 25)
-
-def updateFPS():
-    fps = str(int(clock.get_fps()))
-    fps = font.render(fps, 1, WHITE)
-    return fps
-
+menuRunning = True
 isRunning = True
-while isRunning:
+restart = True
+def rungame():
+    global PAUSE
+    global restart
+    global isRunning
+    restart = False
+    
 
-    for ev in pg.event.get():
-        if ev.type == pg.QUIT:
-            isRunning = False
+    rCaster = Raycaster(screen)
+    rCaster.load_map("map.txt")
 
-        elif ev.type == pg.KEYDOWN:
-            newX = rCaster.player['x']
-            newY = rCaster.player['y']
-            forward = rCaster.player['angle'] * pi / 180
-            right = (rCaster.player['angle'] + 90) * pi / 180
+    clock = pg.time.Clock()
+    font = pg.font.SysFont("Arial", 25)
+    restartfont = pg.font.SysFont("Arial", 25)
+    quitfont = pg.font.SysFont("Arial", 25)
+    restartfont.set_bold(True)
+    restartfont.set_underline(True)
 
-            if ev.key == pg.K_ESCAPE:
+    pauseTitle = pg.font.SysFont("Arial", 45).render('Pause', 1, WHITE)
+    restartdisp = restartfont.render('Restart', 1, WHITE)
+    quitdisp = quitfont.render('Quit', 1, WHITE)
+    button_state = False
+
+    def updateFPS():
+        fps = str(int(clock.get_fps()))
+        fps = font.render(fps, 1, WHITE)
+        return fps
+    newX = rCaster.player['x']
+    newY = rCaster.player['y']
+    while isRunning:
+
+        for ev in pg.event.get():
+            if ev.type == pg.QUIT:
                 isRunning = False
-            elif ev.key == pg.K_w:
-                newX += cos(forward) * rCaster.stepSize
-                newY += sin(forward) * rCaster.stepSize
-            elif ev.key == pg.K_s:
-                newX -= cos(forward) * rCaster.stepSize
-                newY -= sin(forward) * rCaster.stepSize
-            elif ev.key == pg.K_a:
-                newX -= cos(right) * rCaster.stepSize
-                newY -= sin(right) * rCaster.stepSize
-            elif ev.key == pg.K_d:
-                newX += cos(right) * rCaster.stepSize
-                newY += sin(right) * rCaster.stepSize
-            elif ev.key == pg.K_q:
-                rCaster.player['angle'] -= rCaster.turnSize
-            elif ev.key == pg.K_e:
-                rCaster.player['angle'] += rCaster.turnSize
 
+            elif ev.type == pg.KEYDOWN:
+                
+                forward = rCaster.player['angle'] * pi / 180
+                right = (rCaster.player['angle'] + 90) * pi / 180
+
+                if ev.key == pg.K_ESCAPE:
+                    isRunning = False
+                elif ev.key == pg.K_w or (PAUSE and (ev.key == pg.K_UP or ev.key == pg.K_DOLLAR)):
+                    if PAUSE:
+                        restartfont.set_bold(button_state)
+                        restartfont.set_underline(button_state)
+                        button_state = button_state == False
+                        quitfont.set_bold(button_state)
+                        quitfont.set_underline(button_state)
+
+                        restartdisp = restartfont.render('Restart', 1, WHITE)
+                        quitdisp = quitfont.render('Quit', 1, WHITE)
+                    else:
+                        newX += cos(forward) * rCaster.stepSize
+                        newY += sin(forward) * rCaster.stepSize
+                elif ev.key == pg.K_s:
+                    if PAUSE:
+                        restartfont.set_bold(button_state)
+                        restartfont.set_underline(button_state)
+                        button_state = button_state == False
+                        quitfont.set_bold(button_state)
+                        quitfont.set_underline(button_state)
+
+                        restartdisp = restartfont.render('Restart', 1, WHITE)
+                        quitdisp = quitfont.render('Quit', 1, WHITE)
+                    else:
+                        newX -= cos(forward) * rCaster.stepSize
+                        newY -= sin(forward) * rCaster.stepSize
+                elif ev.key == pg.K_a and not(PAUSE):
+                    newX -= cos(right) * rCaster.stepSize
+                    newY -= sin(right) * rCaster.stepSize
+                elif ev.key == pg.K_d and not(PAUSE):
+                    newX += cos(right) * rCaster.stepSize
+                    newY += sin(right) * rCaster.stepSize
+                elif ev.key == pg.K_q and not(PAUSE):
+                    rCaster.player['angle'] -= rCaster.turnSize
+                elif ev.key == pg.K_e and not(PAUSE):
+                    rCaster.player['angle'] += rCaster.turnSize
+                elif ev.key == pg.K_p:
+                    PAUSE = PAUSE == False
+                elif ev.key == pg.K_RETURN and PAUSE:
+                    isRunning = False
+                    PAUSE = False
+                    if not(button_state):
+                        restart = True
+
+                
+                    
+
+        if not(PAUSE):
             i = int(newX/rCaster.blocksize)
             j = int(newY/rCaster.blocksize)
-
             if rCaster.map[j][i] == ' ':
                 rCaster.player['x'] = newX
                 rCaster.player['y'] = newY
+            screen.fill(GRAY)
 
+            # Techo
+            screen.fill(SADDLEBROWN, (int(width / 2), 0,  int(width / 2), int(height / 2)))
 
-    screen.fill(GRAY)
+            # Piso
+            screen.fill(DIMGRAY, (int(width / 2), int(height / 2),  int(width / 2), int(height / 2)))
 
-    # Techo
-    screen.fill(SADDLEBROWN, (int(width / 2), 0,  int(width / 2), int(height / 2)))
+        
+            rCaster.render()
+            #FPS
+            screen.fill(BLACK, (0,0,30,30) )
+            screen.blit(updateFPS(), (0,0))
+            clock.tick(60)
+        if PAUSE:
+            screen.fill(BLACK)
+            screen.blit(pauseTitle, (100, 100))
+            screen.blit(restartdisp, (450, 120))
+            screen.blit(quitdisp, (450, 200))
 
-    # Piso
-    screen.fill(DIMGRAY, (int(width / 2), int(height / 2),  int(width / 2), int(height / 2)))
+        pg.display.flip()
 
+def runmenu():
+    global isRunning
+    global menuRunning
+    button_state = False
 
-    rCaster.render()
+    titlefont = pg.font.SysFont("Arial", 45)
+    playfont = pg.font.SysFont("Arial", 25)
+    quitfont = pg.font.SysFont("Arial", 25)
+    playfont.set_underline(True)
+    playfont.set_bold(True)
+    title = titlefont.render('RayCaster', 1, WHITE)
+    playdisp = playfont.render('Play', 1, WHITE)
+    quitdisp = quitfont.render('Quit', 1, WHITE)
+    while menuRunning:
+        
+        for ev in pg.event.get():
+            if ev.type == pg.KEYDOWN:
+                if ev.key == pg.K_DOWN or ev.key == pg.K_UP or ev.key == pg.K_w or ev.key == pg.K_s:
+                    playfont.set_bold(button_state)
+                    playfont.set_underline(button_state)
+                    button_state = button_state == False
+                    quitfont.set_bold(button_state)
+                    quitfont.set_underline(button_state)
 
-    #FPS
-    screen.fill(BLACK, (0,0,30,30) )
-    screen.blit(updateFPS(), (0,0))
-    clock.tick(60)
+                    playdisp = playfont.render('Play', 1, WHITE)
+                    quitdisp = quitfont.render('Quit', 1, WHITE)
+                if ev.key == pg.K_RETURN:
+                    menuRunning = False
+                    if button_state:
+                        isRunning = False
+        screen.fill(BLACK)
+        screen.blit(title, (100, 100))
+        screen.blit(playdisp, (450, 120))
+        screen.blit(quitdisp, (450, 200))
+        pg.display.flip()
+    
 
-
-    pg.display.flip()
-
+while restart:
+    if menuRunning:
+        runmenu()
+    else:
+        isRunning = True
+    rungame()
 pg.quit()
